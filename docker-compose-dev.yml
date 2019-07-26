@@ -1,0 +1,35 @@
+version: "3.4"
+
+services:
+  favorite-thinks:
+    container_name: favorite-thinks
+    build:
+      context: ./favorite
+      dockerfile: Dockerfile
+    volumes:
+      - ./favorite/usr/src/app
+    ports:
+      - 5001:5000
+    environment:
+      - FLASK_APP=project/__init__.py
+      - FLASK_DEBUG=1
+      - APP_SETTINGS=project.config.DevelopmentConfig
+      - DATABASE_URL='mysql://test:test1234@favorite-db/favorite_db'
+      - SECRET_KEY=my_precious
+    depends_on:
+      - favorite-db
+    links:
+      - favorite-db
+
+  favorite-db:
+    container_name: favorite-db
+    build:
+      context: ./favorite/project/db
+      dockerfile: Dockerfile
+    ports:
+      - 32000:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD= root
+      - MYSQL_DATABASE= favorite_db
+      - MYSQL_USER= test
+      - MYSQL_PASSWORD= test1234
