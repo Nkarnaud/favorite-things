@@ -10,9 +10,9 @@ cli = FlaskGroup(create_app=create_app)
 
 @event.listens_for(Category.__table__, 'after_create')
 def insert_initial_values(*args, **kwargs):
-    db.session.add(Category(name='person'))
-    db.session.add(Category(name='place'))
-    db.session.add(Category(name='food'))
+    db.session.add(Category(category_name='person'))
+    db.session.add(Category(category_name='place'))
+    db.session.add(Category(category_name='food'))
     db.session.commit()
 
 @cli.command()

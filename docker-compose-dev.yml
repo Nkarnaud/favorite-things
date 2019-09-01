@@ -6,15 +6,12 @@ services:
     build:
       context: ./favorite
       dockerfile: Dockerfile
-    volumes:
-      - ./favorite/usr/src/app
     ports:
       - 5001:5000
     environment:
-      - FLASK_APP=project/__init__.py
       - FLASK_DEBUG=1
       - APP_SETTINGS=project.config.DevelopmentConfig
-      - DATABASE_URL='mysql://test:test1234@favorite-db/favorite_db'
+      - DATABASE_URL=mysql://root:root@favorite-db:3306/favorite_db
       - SECRET_KEY=my_precious
     depends_on:
       - favorite-db
@@ -22,14 +19,15 @@ services:
       - favorite-db
 
   favorite-db:
+    restart: always
     container_name: favorite-db
     build:
       context: ./favorite/project/db
       dockerfile: Dockerfile
     ports:
-      - 32000:3306
+      - 33306:3306
     environment:
-      - MYSQL_ROOT_PASSWORD= root
-      - MYSQL_DATABASE= favorite_db
-      - MYSQL_USER= test
-      - MYSQL_PASSWORD= test1234
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASES=favorite_db
+      - MYSQL_USER=favorite
+      - MYSQL_PASSWORD=test1234

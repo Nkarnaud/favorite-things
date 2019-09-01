@@ -1,22 +1,34 @@
 # -*- coding: utf-8 -*-
-
 import logging
+
+
 from flask import Blueprint, jsonify, request, render_template
 from project.models.models import Favorite, Category, AuditLog
 from project import db
+from flask import current_app
+from project.logsfile import init_logs
 from sqlalchemy import exc
 
-favorite_blueprint = Blueprint('favorite', __name__, template_folder='../templates')
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-@favorite_blueprint.route('/friends/ping', methods=['GET'])
+# Blueprint initialization
+favorite_blueprint = Blueprint('favorite', __name__, template_folder='../templates')
+log = init_logs('favourite')
+print(log)
+
+# Sanity test
+@favorite_blueprint.route('/favorite/ping', methods=['GET'])
 def ping_pong():
+    logs = log.info('Sanity Test: %s', (request.path))
+    logg = str(current_app.logger.info('Sanity test'))
+    print(log)
     return jsonify({
         'status': 'success',
+        'log': logg,
         'message': 'pong!'
     })
 
+
+# Create favorite thinks in the database
 @favorite_blueprint.route('/favorite/create', methods=['POST'])
 def create_favorite():
     # get post data
@@ -36,18 +48,20 @@ def create_favorite():
         favorite = Favorit.query.filter(ranking=ranking, category_id=category_id).first()
         if not favorite:
             new_favorite(
-                title = title
-                category_id = category_id
+                title = title,
+                category_id = category_id,
                 ranking = ranking
             )
             if post_data.get('description'):
-                new_favorite.metadata = post_data.get('description')
+                if len(post_data.get('description'))< 10:
+                    raise Exception("Description too short")
+                new_favorite.description = post_data.get('description')
             if post_data.get('metadata'):
-                new_favorite.metadata = post_data.get('metadata')
+                new_favorite.meta_data = post_data.get('metadata')
             db.session.add(new_favorite)
             log = AuditLog(
               logger = logger.info('Your favorite thing was added.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -57,7 +71,7 @@ def create_favorite():
         else:
             log = AuditLog(
               logger = logger.warning('There exist a ranking with this same category.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -66,12 +80,14 @@ def create_favorite():
     except Exception as e:
         log = AuditLog(
               logger = logger.error(e), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
-            db.session.add(log)
-            db.session.commit()
+        db.session.add(log)
+        db.session.commit()
         return jsonify(response_object), 400
 
+
+# Get favorite things details from the database
 @favorite_blueprint.route('/favorite/<id>', methods=['GET'])
 def Favorite_detaile(id):
     """Get single favorite things details"""
@@ -89,7 +105,7 @@ def Favorite_detaile(id):
                     'title': favorite.title,
                     'category': Category.query.filter_by(id=favorite.category_id),
                     'ranking': favorite.ranking,
-                    'metadata': favorite.metadata,
+                    'metadata': favorite.meta_data,
                     'create_data': favorite.create_data,
                     'modified_data': favorite.modified_data,
                 }
@@ -104,7 +120,7 @@ def Favorite_detaile(id):
         else:
             log = AuditLog(
               logger = logger.warning('Favorite things does not exists..'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -113,15 +129,16 @@ def Favorite_detaile(id):
                 'message': 'Favorite things does not exists.'}
             return jsonify(response_object), 401
     except exc.IntegrityError as e:
-        db.session.rollback()
         log = AuditLog(
               logger = logger.error('Favorite things does not exists..'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
-            db.session.add(log)
-            db.session.commit()
+        db.session.add(log)
+        db.session.commit()
         return jsonify(response_object), 400
 
+
+# List Favorite things in the database
 @favorite_blueprint.route('/favorite/lists', methods=['GET'])
 def get_all_favorite():
     # This function provide the list of all favorite in the system
@@ -133,12 +150,14 @@ def get_all_favorite():
         }
         log = AuditLog(
               logger = logger.info('List of favorite user in the system.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
-            db.session.add(log)
-            db.session.commit()
+        db.session.add(log)
+        db.session.commit()
         return jsonify(response_object), 201
 
+
+# Update favorite things in the database
 @favorite_blueprint.route('/favorite/update/<id>', methods=['PUT'])
 def update_favorite(id):
     """To update a favorite things in the systeme"""
@@ -152,7 +171,7 @@ def update_favorite(id):
         if not favorite:
             log = AuditLog(
               logger = logger.warning('The favorit thing Id to update is wrong.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -161,11 +180,11 @@ def update_favorite(id):
             favorite.title = post_data.get('title')
             favorite.category_id = Category.query.filter_by(category_name=post_data.get('category')).id
             favorite.ranking = post_data.get('ranking')
-            favorite.metadata = post_data.get('metadata')
+            favorite.meta_data = post_data.get('metadata')
             favorite.modified_date = datetime.datetime.utcnow()
             log = AuditLog(
               logger = logger.info('Favorite things was updated.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -173,15 +192,16 @@ def update_favorite(id):
                 'message': 'The Favorite thing has been update'}
             return response_object, 201
     except Exception as e:
-        db.session.rollback()
         log = AuditLog(
               logger = logger.error(e), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
-            db.session.add(log)
-            db.session.commit()
+        db.session.add(log)
+        db.session.commit()
         return jsonify({"message": str(e)}), 401
 
+
+# Create category of favorite things in the database
 @favorite_blueprint.route('/favorite/create_category', methods=['POST'])
 def create_category():
     # get post data
@@ -204,7 +224,7 @@ def create_category():
             db.session.add(new_cat)
             log = AuditLog(
               logger = logger.info('A new category was added.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -214,7 +234,7 @@ def create_category():
         else:
             log = AuditLog(
               logger = logger.warning('This category already exit.'), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
             db.session.add(log)
             db.session.commit()
@@ -223,8 +243,21 @@ def create_category():
     except Exception as e:
         log = AuditLog(
               logger = logger.error(e), 
-              level = loger.leve(),
+              level = logger.leve(),
             )
-            db.session.add(log)
-            db.session.commit()
+        db.session.add(log)
+        db.session.commit()
         return jsonify(response_object), 400
+
+
+# Provide the list ofr log activities in the database.
+@favorite_blueprint.route('/favorite/logs', methods=['GET'])
+def get_logs():
+    # This function provide the list of all favorite in the system
+        response_object = {
+            'status': 'success',
+            'data': {
+                'users': [logs.to_json() for logs in AuditLog.query.all()]
+            }
+        }
+        return jsonify(response_object), 201
